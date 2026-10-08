@@ -116,7 +116,7 @@ function buildGraph(elements){
     if(len>0.5){
      const a=ids[0],b=ids[ids.length-1];
      let key=w.id+":"+a+"-"+b;while(keys.has(key))key+="'";keys.add(key);
-     const e={i:edges.length,key,a,b,geom,len,name,required:!!name,oneway:ow};
+     const e={i:edges.length,key,a,b,geom,len,name,required:!!name,oneway:ow,hw:w.tags.highway};
      edges.push(e);link(a,e.i);if(b!==a)link(b,e.i);
     }
     s=i;
@@ -428,9 +428,14 @@ function renderList(){
 }
 
 /* ---------- Calcul du parcours ---------- */
-function nearestNode(p){
+const CAR_ROADS=/^(primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street)$/;
+function nearestNode(p,carOnly=false){
  let best=null,bd=Infinity;
- for(const [n,c] of G.coord){if(!G.adj.has(n))continue;const d=hav(p,c);if(d<bd){bd=d;best=n}}
+ for(const [n,c] of G.coord){
+  const list=G.adj.get(n);if(!list)continue;
+  if(carOnly&&!list.some(ei=>CAR_ROADS.test(G.edges[ei].hw||"")))continue;
+  const d=hav(p,c);if(d<bd){bd=d;best=n}
+ }
  return best;
 }
 function plan(){
@@ -441,7 +446,9 @@ function plan(){
  setInstr("⏳","Calcul du parcours…","Quelques secondes.");
  setTimeout(()=>{
   const t0=performance.now();
-  const start=nearestNode(p);
+  let start=nearestNode(p);
+  // Si on arrive de loin (en voiture), le départ doit être sur une vraie route, pas un chemin
+  if(hav(p,G.coord.get(start))>400)start=nearestNode(p,true)||start;
   const res=planRoute(G,todo,start);
   route=buildRoute(G,res.steps);progress=0;offCount=0;spokenLeg=-1;spokenFar=-1;
   drawRoute();
