@@ -269,7 +269,15 @@ function turnText(a){
 /* ================= APPLICATION ================= */
 const CENTER=[43.44010,3.14368];
 const STORAGE="murviel-rues-v4",OLD_STORAGE="murviel-rues-v3";
-const ENDPOINTS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter"];
+const ENDPOINTS=[
+ "https://overpass-api.de/api/interpreter",
+ "https://lz4.overpass-api.de/api/interpreter",
+ "https://z.overpass-api.de/api/interpreter",
+ "https://overpass.private.coffee/api/interpreter",
+ "https://overpass.kumi.systems/api/interpreter",
+ "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+];
+const CACHE="murviel-reseau-v4",CACHE_DAYS=30;
 const $=id=>document.getElementById(id);
 
 const map=L.map("map",{zoomControl:false}).setView(CENTER,15);
@@ -288,22 +296,58 @@ function save(){localStorage.setItem(STORAGE,JSON.stringify([...doneKeys]))}
 const isDone=ei=>doneKeys.has(G.edges[ei].key);
 const fmt=m=>m>=1000?(m/1000).toFixed(1).replace(".",",")+" km":Math.round(m/10)*10+" m";
 
-async function loadRoads(){
- const q=`[out:json][timeout:90];
+/* Chargement : 1) mémoire du téléphone  2) serveurs OSM (plusieurs essais)  3) ancienne mémoire en secours */
+function readCache(){try{return JSON.parse(localStorage.getItem(CACHE)||"null")}catch(e){return null}}
+function writeCache(elements){
+ // on ne garde que l'utile pour tenir dans la mémoire du navigateur
+ const slim=elements.filter(w=>w.type==="way"&&w.geometry).map(w=>({type:"way",id:w.id,nodes:w.nodes,
+  tags:{highway:w.tags?.highway,name:w.tags?.name,oneway:w.tags?.oneway,junction:w.tags?.junction},
+  geometry:w.geometry.map(p=>p&&{lat:+p.lat.toFixed(6),lon:+p.lon.toFixed(6)})}));
+ try{localStorage.setItem(CACHE,JSON.stringify({t:Date.now(),elements:slim}))}catch(e){}
+}
+async function fetchOne(ep,q){
+ const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),45000);
+ try{
+  const r=await fetch(ep,{method:"POST",body:"data="+encodeURIComponent(q),
+   headers:{"Content-Type":"application/x-www-form-urlencoded"},signal:ctl.signal});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const j=await r.json();
+  if(!j.elements?.length)throw new Error("réponse vide");
+  return j.elements;
+ }finally{clearTimeout(timer)}
+}
+async function loadRoads(force=false){
+ const cached=readCache();
+ if(!force&&cached?.elements?.length&&Date.now()-cached.t<CACHE_DAYS*864e5){
+  startWith(cached.elements);msg("Rues chargées depuis la mémoire du téléphone.");return;
+ }
+ const q=`[out:json][timeout:120];
 area["ref:INSEE"="34178"]["boundary"="administrative"]["admin_level"="8"]->.c;
 way(area.c)["highway"];
 out body geom;`;
- let data=null;
- for(const ep of ENDPOINTS){
-  try{const r=await fetch(ep+"?data="+encodeURIComponent(q),{cache:"no-store"});if(!r.ok)continue;data=await r.json();if(data.elements?.length)break}catch(e){}
+ const errors=[];
+ for(let pass=1;pass<=2;pass++){
+  for(const ep of ENDPOINTS){
+   const host=new URL(ep).host;
+   setInstr("⏳","Chargement des rues…",`Serveur ${host} (essai ${pass}/2)`);
+   try{const el=await fetchOne(ep,q);writeCache(el);startWith(el);msg("Rues téléchargées et gardées en mémoire pour les prochaines fois.");return}
+   catch(e){errors.push(host+" : "+(e.name==="AbortError"?"trop lent":e.message))}
+  }
+  if(pass===1)await new Promise(r=>setTimeout(r,4000));
  }
- if(!data?.elements?.length){setInstr("⚠️","Rues non chargées","Les serveurs OpenStreetMap ne répondent pas. Recharge la page.");return}
- G=buildGraph(data.elements);
+ if(cached?.elements?.length){startWith(cached.elements);msg("Serveurs OSM indisponibles : j'utilise les rues gardées en mémoire.");return}
+ setInstr("⚠️","Rues non chargées","Aucun serveur OpenStreetMap n'a répondu. Réessaie dans quelques minutes.");
+ msg(errors.join(" · "));
+ $("planBtn").disabled=false;$("planBtn").textContent="Réessayer le chargement";
+}
+function startWith(elements){
+ G=buildGraph(elements);streets=new Map();
  G.edges.forEach(e=>{if(!e.required)return;if(!streets.has(e.name))streets.set(e.name,[]);streets.get(e.name).push(e.i)});
  migrateOld();buildSamples();drawEdges();updateStats();renderList();
- const ls=[];edgeLayers.forEach(l=>ls.push(l));if(ls.length)map.fitBounds(L.featureGroup(ls).getBounds().pad(.04));
- $("planBtn").disabled=false;
+ const ls=[];edgeLayers.forEach(l=>ls.push(l));if(ls.length&&!position)map.fitBounds(L.featureGroup(ls).getBounds().pad(.04));
+ $("planBtn").disabled=false;$("planBtn").textContent="Calculer le parcours";
  setInstr("🧭","Prêt",streets.size+" rues chargées. Démarre le GPS : le parcours se calcule depuis ta position.");
+ if(position)plan();
 }
 function migrateOld(){
  try{
@@ -527,7 +571,7 @@ map.on("dragstart",()=>{follow=false;msg("Suivi de la carte en pause — touche 
 map.on("click",e=>{if(position&&hav([e.latlng.lat,e.latlng.lng],position)<40){follow=true;map.panTo(position)}});
 
 $("gps").onclick=startGPS;
-$("planBtn").onclick=plan;
+$("planBtn").onclick=()=>G?plan():loadRoads(true);
 $("voiceBtn").onclick=()=>{voice=!voice;$("voiceBtn").textContent=voice?"🔊":"🔇";$("voiceBtn").classList.toggle("on",voice);if(voice)say("Guidage vocal activé")};
 $("listBtn").onclick=()=>$("list").style.display="block";
 $("closeList").onclick=()=>$("list").style.display="none";
