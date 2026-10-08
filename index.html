@@ -387,7 +387,11 @@ function markCoverage(){
  for(const ei of touched){const e=G.edges[ei];if(!isDone(ei)&&e.hit/e.samples.length>=.75){doneKeys.add(e.key);newly.push(ei)}}
  if(newly.length){save();newly.forEach(styleEdge);updateStats();renderList();
   const names=[...new Set(newly.map(ei=>G.edges[ei].name))].filter(n=>streetDone(n));
-  if(names.length)msg("✅ Rue terminée : "+names.join(", "));}
+  if(names.length)msg("✅ Rue terminée : "+names.join(", "));
+  if(route&&!farMode){
+   const later=newly.some(ei=>route.stepInfo.some(st=>st.e===ei&&st.isNew&&route.cum[st.from]>progress+60));
+   if(later)autoPlan("Rue faite en avance");
+  }}
 }
 const streetDone=n=>(streets.get(n)||[]).every(isDone);
 
@@ -438,7 +442,36 @@ function nearestNode(p,carOnly=false){
  }
  return best;
 }
-function plan(){
+/* Centre du village = médiane des rues résidentielles (là où sont les maisons) */
+function villageCenter(){
+ if(G.center)return G.center;
+ const la=[],lo=[];
+ for(const e of G.edges)if(/^(residential|living_street)$/.test(e.hw||"")){const m=e.geom[Math.floor(e.geom.length/2)];la.push(m[0]);lo.push(m[1])}
+ if(!la.length)return G.center=CENTER;
+ la.sort((a,b)=>a-b);lo.sort((a,b)=>a-b);
+ return G.center=[la[la.length>>1],lo[lo.length>>1]];
+}
+/* Point sur une route goudronnée, à moins de 700 m du centre, le plus proche de toi */
+function villageEntry(p){
+ const c=villageCenter();
+ for(const R of [700,1200,2000]){
+  let best=null,bd=Infinity;
+  for(const [n,xy] of G.coord){
+   const list=G.adj.get(n);if(!list||!list.some(ei=>CAR_ROADS.test(G.edges[ei].hw||"")))continue;
+   if(hav(xy,c)>R)continue;
+   const d=hav(p,xy);if(d<bd){bd=d;best=n}
+  }
+  if(best!==null)return best;
+ }
+ return null;
+}
+let lastPlan=0;
+function autoPlan(reason){
+ if(Date.now()-lastPlan<15000)return;
+ plan(reason);
+}
+function plan(reason){
+ lastPlan=Date.now();
  if(!G)return;
  const from=position||map.getCenter();const p=Array.isArray(from)?from:[from.lat,from.lng];
  const todo=G.edges.filter(e=>e.required&&!isDone(e.i)).map(e=>e.i);
@@ -447,16 +480,17 @@ function plan(){
  setTimeout(()=>{
   const t0=performance.now();
   let start=nearestNode(p);
-  // Si on arrive de loin (en voiture), le départ doit être sur une vraie route, pas un chemin
-  if(hav(p,G.coord.get(start))>400)start=nearestNode(p,true)||start;
+  // Si on arrive de loin : départ à l'entrée du village, côté d'où tu arrives, sur une vraie route
+  if(hav(p,G.coord.get(start))>400)start=villageEntry(p)||start;
   const res=planRoute(G,todo,start);
   route=buildRoute(G,res.steps);progress=0;offCount=0;spokenLeg=-1;spokenFar=-1;
   drawRoute();
   const dupPct=route.total?Math.round((route.total-route.newLen)/route.total*100):0;
   $("dup").textContent=dupPct+"%";
-  msg(`Parcours : ${fmt(route.total)} dont ${fmt(route.total-route.newLen)} de liaison (${Math.round(performance.now()-t0)} ms).`
+  msg((reason?"🔁 "+reason+" — ":"")+`Parcours : ${fmt(route.total)} dont ${fmt(route.total-route.newLen)} de liaison (${Math.round(performance.now()-t0)} ms).`
    +(res.unreachableCount?` ${res.unreachableCount} tronçons isolés ignorés.`:""));
   $("planBtn").textContent="Recalculer";
+  if(reason&&voice)say("Parcours recalculé");
   updateNav();
  },30);
 }
@@ -496,7 +530,11 @@ function updateNav(){
  routeAhead.setLatLngs(ahead);
  const cur=legs[k],nxt=legs[k+1],dist=cur.end-progress;
  const box=$("instr");box.classList.toggle("off",offCount>=3);box.classList.toggle("liaison",offCount<3&&!cur.isNew);
- if(offCount>=3){setInstr("⚠️","Hors parcours","Reviens sur le tracé bleu ou appuie sur Recalculer.");return}
+ if(offCount>=3){
+  setInstr("⚠️","Hors parcours","Recalcul automatique dès que tu es sur une rue.");
+  if(position&&hav(position,G.coord.get(nearestNode(position)))<35)autoPlan("Détour détecté");
+  return;
+ }
  const curTxt=(cur.isNew?"Rue à faire : ":"Liaison : ")+(cur.name||"voie sans nom")+(cur.against?" ⚠️ sens interdit":"");
  if(!nxt){setInstr("🏁",fmt(dist),"Fin du parcours",curTxt);return}
  const [ar,tt]=turnText(nxt.angle);
@@ -510,7 +548,8 @@ function updateNav(){
 let farMode=false;
 function showFar(d){
  $("instr").classList.remove("off","liaison");
- setInstr("🚗","Murviel à "+fmt(d),"Rends-toi au début du parcours","Le guidage rue par rue démarre tout seul quand tu arrives.");
+ if(route?.pts.length&&position)d=hav(position,route.pts[0]);
+ setInstr("🚗","Départ à "+fmt(d),"Rends-toi au début du parcours","Le guidage rue par rue démarre tout seul quand tu arrives.");
  if(route?.pts.length){
   const [la,lo]=route.pts[0],ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
   const b=$("goBtn");b.style.display="block";
@@ -554,7 +593,9 @@ function onPosition(pos){
  // Loin du réseau de Murviel : on guide vers le départ au lieu d'afficher « hors parcours »
  if(G){
   const n=nearestNode(position),d=hav(position,G.coord.get(n));
-  if(d>400){
+  // Tant que tu roules vers le départ (même déjà sur la commune), on reste en mode « en route »
+  const stillComing=farMode&&route?.pts.length&&hav(position,route.pts[0])>250&&hav(position,villageCenter())>700;
+  if(d>400||stillComing){
    if(!route)plan();
    if(!farMode){farMode=true;setTimeout(()=>{if(route?.pts.length)map.fitBounds(L.latLngBounds([position,route.pts[0]]).pad(.2))},100)}
    showFar(d);
@@ -578,7 +619,7 @@ map.on("dragstart",()=>{follow=false;msg("Suivi de la carte en pause — touche 
 map.on("click",e=>{if(position&&hav([e.latlng.lat,e.latlng.lng],position)<40){follow=true;map.panTo(position)}});
 
 $("gps").onclick=startGPS;
-$("planBtn").onclick=()=>G?plan():loadRoads(true);
+$("planBtn").onclick=()=>G?plan(""):loadRoads(true);
 $("voiceBtn").onclick=()=>{voice=!voice;$("voiceBtn").textContent=voice?"🔊":"🔇";$("voiceBtn").classList.toggle("on",voice);if(voice)say("Guidage vocal activé")};
 $("listBtn").onclick=()=>$("list").style.display="block";
 $("closeList").onclick=()=>$("list").style.display="none";
