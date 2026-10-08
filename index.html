@@ -59,6 +59,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif
   <div class="stat"><div class="num" id="dup">—</div><div class="lbl">doublons</div></div>
  </div>
  <div class="progress"><div class="bar" id="bar"></div></div>
+ <a id="goBtn" class="btn" style="display:none;margin-top:9px;text-align:center;text-decoration:none;box-shadow:none" target="_blank" rel="noopener">Y aller avec Plans</a>
  <div id="msg"></div>
 </div>
 
@@ -431,6 +432,7 @@ function projectOnRoute(){
 }
 function updateNav(){
  if(!route)return;
+ if(farMode&&position){showFar(hav(position,G.coord.get(nearestNode(position))));return}
  if(position){
   const pr=projectOnRoute();
   if(pr.d<Math.max(30,lastAcc)){progress=Math.max(progress,pr.at);offCount=0}else offCount++;
@@ -452,6 +454,17 @@ function updateNav(){
  if(voice){
   if(dist<45&&spokenLeg!==k){spokenLeg=k;say(tt+(Math.abs(nxt.angle)>=150?"":" sur "+(nxt.name||"la voie sans nom")))}
   else if(dist>120&&dist<200&&spokenFar!==k){spokenFar=k;say("Dans "+Math.round(dist/10)*10+" mètres, "+tt.toLowerCase())}
+ }
+}
+let farMode=false;
+function showFar(d){
+ $("instr").classList.remove("off","liaison");
+ setInstr("🚗","Murviel à "+fmt(d),"Rends-toi au début du parcours","Le guidage rue par rue démarre tout seul quand tu arrives.");
+ if(route?.pts.length){
+  const [la,lo]=route.pts[0],ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  const b=$("goBtn");b.style.display="block";
+  b.textContent=ios?"Y aller avec Plans":"Y aller avec Google Maps";
+  b.href=ios?`https://maps.apple.com/?daddr=${la},${lo}&dirflg=d`:`https://www.google.com/maps/dir/?api=1&destination=${la},${lo}`;
  }
 }
 function setInstr(a,d,n,s=""){ $("arrow").textContent=a;$("idist").textContent=d;$("iname").textContent=n;$("isub").textContent=s }
@@ -487,6 +500,20 @@ function onPosition(pos){
   accCircle=L.circle(position,{radius:lastAcc,color:"#2563eb",fillOpacity:.08,weight:1}).addTo(map);
   map.setView(position,17);
  }else{userMarker.setLatLng(position);accCircle.setLatLng(position).setRadius(lastAcc)}
+ // Loin du réseau de Murviel : on guide vers le départ au lieu d'afficher « hors parcours »
+ if(G){
+  const n=nearestNode(position),d=hav(position,G.coord.get(n));
+  if(d>400){
+   if(!route)plan();
+   if(!farMode){farMode=true;setTimeout(()=>{if(route?.pts.length)map.fitBounds(L.latLngBounds([position,route.pts[0]]).pad(.2))},100)}
+   showFar(d);
+   return;
+  }
+  if(farMode){ // on vient d'arriver : parcours recalculé depuis la vraie position
+   farMode=false;$("goBtn").style.display="none";
+   if(precise){map.setView(position,17);follow=true;plan();return}
+  }
+ }
  if(follow)map.panTo(position,{animate:true});
  if(!precise){
   msg("Position approximative ("+Math.round(lastAcc)+" m) : les rues ne sont pas validées tant que le GPS n'est pas précis. Va dehors, ça prend parfois 30 s.");
