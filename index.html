@@ -6,229 +6,494 @@
 <meta name="theme-color" content="#111827">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.svg">
-<title>Murviel — Toutes les rues V3</title>
+<title>Murviel — Toutes les rues V4</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{box-sizing:border-box}html,body,#map{height:100%;margin:0}body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif}
-#map{position:fixed;inset:0}.panel{position:fixed;z-index:1000;left:10px;right:10px;top:max(10px,env(safe-area-inset-top));background:rgba(255,255,255,.97);border-radius:18px;padding:12px;box-shadow:0 4px 24px #0003}
-.title{font-size:19px;font-weight:800}.sub{font-size:12px;color:#667085;margin-top:2px}
-.stats{display:flex;gap:7px;margin-top:9px}.stat{flex:1;background:#f2f4f7;border-radius:11px;padding:7px;text-align:center}.num{font-size:17px;font-weight:800}.lbl{font-size:10px;color:#667085}
-.progress{height:8px;background:#e4e7ec;border-radius:99px;margin-top:9px;overflow:hidden}.bar{height:100%;width:0;background:#16a34a;transition:width .25s}
-.next{margin-top:9px;background:#eef4ff;border-radius:12px;padding:9px;font-size:12px}.next b{font-size:14px}
-.buttons{display:flex;gap:7px;margin-top:9px}.btn{flex:1;border:0;border-radius:11px;padding:11px;font-weight:750;background:#111827;color:white}.btn.secondary{background:#e4e7ec;color:#111827}.btn:disabled{opacity:.5}
+*{box-sizing:border-box}html,body,#map{height:100%;margin:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif;color:#111827}
+#map{position:fixed;inset:0}
+.panel{position:fixed;z-index:1000;left:10px;right:10px;top:max(10px,env(safe-area-inset-top));background:rgba(255,255,255,.97);border-radius:18px;padding:12px;box-shadow:0 4px 24px #0003}
+.instr{display:flex;align-items:center;gap:12px;background:#1d4ed8;color:#fff;border-radius:14px;padding:10px 12px}
+.arrow{font-size:34px;line-height:1;width:40px;text-align:center}
+.idist{font-size:22px;font-weight:800}
+.iname{font-size:15px;font-weight:650;margin-top:1px}
+.isub{font-size:12px;opacity:.85;margin-top:2px}
+.instr.liaison{background:#475467}
+.instr.off{background:#b42318}
+.stats{display:flex;gap:7px;margin-top:9px}
+.stat{flex:1;background:#f2f4f7;border-radius:11px;padding:6px;text-align:center}
+.num{font-size:16px;font-weight:800}.lbl{font-size:10px;color:#667085}
+.progress{height:7px;background:#e4e7ec;border-radius:99px;margin-top:8px;overflow:hidden}
+.bar{height:100%;width:0;background:#16a34a;transition:width .25s}
 #msg{font-size:12px;color:#475467;margin-top:7px;line-height:1.25;min-height:15px}
-.legend{position:fixed;z-index:999;bottom:max(12px,env(safe-area-inset-bottom));left:10px;background:#fffef0eF;border-radius:13px;padding:8px 10px;font-size:11px;box-shadow:0 2px 12px #0002}
-#list{display:none;position:fixed;z-index:1100;inset:0;background:white;padding:18px;padding-top:max(18px,env(safe-area-inset-top));overflow:auto}.listhead{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:20px;margin-bottom:12px}.street{padding:10px 4px;border-bottom:1px solid #eee;font-size:14px}.street.done{color:#16a34a;text-decoration:line-through}
+.bottom{position:fixed;z-index:1000;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));display:flex;gap:7px}
+.btn{flex:1;border:0;border-radius:12px;padding:12px 6px;font-weight:750;font-size:14px;background:#111827;color:#fff;box-shadow:0 2px 12px #0003}
+.btn.secondary{background:#fff;color:#111827}
+.btn.small{flex:0 0 48px}
+.btn:disabled{opacity:.5}
+.btn.on{background:#1d4ed8;color:#fff}
+#list{display:none;position:fixed;z-index:1100;inset:0;background:#fff;padding:18px;padding-top:max(18px,env(safe-area-inset-top));overflow:auto}
+.listhead{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:20px;margin-bottom:12px}
+.street{display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid #eee;font-size:14px}
+.street.done{color:#16a34a;text-decoration:line-through}
+.street small{color:#98a2b3}
+.leaflet-bottom.leaflet-right{margin-bottom:64px}
 </style>
 </head>
 <body>
 <div id="map"></div>
+
 <div class="panel">
- <div class="title">Murviel-lès-Béziers</div>
- <div class="sub">Toutes les rues — V3</div>
+ <div class="instr" id="instr">
+  <div class="arrow" id="arrow">🧭</div>
+  <div style="flex:1;min-width:0">
+   <div class="idist" id="idist">Murviel-lès-Béziers</div>
+   <div class="iname" id="iname">Chargement des rues…</div>
+   <div class="isub" id="isub"></div>
+  </div>
+ </div>
  <div class="stats">
   <div class="stat"><div class="num" id="done">0</div><div class="lbl">rues faites</div></div>
   <div class="stat"><div class="num" id="total">—</div><div class="lbl">rues</div></div>
-  <div class="stat"><div class="num" id="pct">0%</div><div class="lbl">progression</div></div>
+  <div class="stat"><div class="num" id="remain">—</div><div class="lbl">km restants</div></div>
+  <div class="stat"><div class="num" id="dup">—</div><div class="lbl">doublons</div></div>
  </div>
  <div class="progress"><div class="bar" id="bar"></div></div>
- <div class="next">Prochaine rue : <b id="next">—</b><br><span id="nextdist">Démarre le GPS pour calculer le trajet.</span></div>
- <div class="buttons">
-  <button class="btn" id="gps">Démarrer GPS</button>
-  <button class="btn secondary" id="listBtn">Liste des rues</button>
- </div>
- <div class="buttons">
-  <button class="btn secondary" id="reset">Réinitialiser</button>
-  <button class="btn secondary" id="routeBtn" disabled>Aller à la prochaine</button>
- </div>
- <div id="msg">Chargement des rues de la commune…</div>
+ <div id="msg"></div>
 </div>
-<div class="legend">🔴 à faire &nbsp; 🟢 faite &nbsp; 🔵 position &nbsp; 🔷 trajet</div>
+
+<div class="bottom">
+ <button class="btn" id="gps">Démarrer GPS</button>
+ <button class="btn secondary" id="planBtn" disabled>Calculer le parcours</button>
+ <button class="btn secondary small" id="listBtn" title="Liste des rues">☰</button>
+ <button class="btn secondary small" id="voiceBtn" title="Voix">🔇</button>
+</div>
 
 <div id="list">
- <div class="listhead"><span>Rues de Murviel</span><button class="btn secondary" id="closeList" style="flex:0;padding:8px 12px">Fermer</button></div>
+ <div class="listhead"><span>Rues de Murviel</span><button class="btn secondary" id="closeList" style="flex:0;padding:8px 12px;box-shadow:none;background:#e4e7ec">Fermer</button></div>
+ <div class="stat" style="text-align:left;margin-bottom:10px;font-size:12px">Touche une rue pour la valider ou la remettre à faire. Sur la carte, touche un tronçon pour ne changer que lui.</div>
  <div id="streetList"></div>
+ <button class="btn secondary" id="reset" style="width:100%;margin-top:16px;background:#fee4e2;color:#b42318;box-shadow:none">Réinitialiser toute la progression</button>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const CENTER=[43.44010,3.14368];
-const STORAGE="murviel-rues-v3";
-const ENDPOINTS=[
- "https://overpass-api.de/api/interpreter",
- "https://overpass.kumi.systems/api/interpreter",
- "https://overpass.private.coffee/api/interpreter"
-];
-const ROUTER="https://router.project-osrm.org/route/v1/driving/";
-
-const map=L.map("map",{zoomControl:false}).setView(CENTER,14);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap contributors"}).addTo(map);
-L.control.zoom({position:"bottomright"}).addTo(map);
-
-let ways=[], streetMap=new Map(), streetLayers=new Map(), done=new Set(), watchId=null;
-let userMarker=null, accuracyCircle=null, position=null, routeLine=null;
-try{done=new Set(JSON.parse(localStorage.getItem(STORAGE)||"[]"))}catch(e){}
-
-const excluded=new Set(["footway","path","cycleway","steps","pedestrian","bridleway","corridor","construction","proposed"]);
-function save(){localStorage.setItem(STORAGE,JSON.stringify([...done]));updateUI();renderList()}
-function updateUI(){
- const names=[...streetMap.keys()], d=names.filter(n=>done.has(n)).length, t=names.length, p=t?Math.round(d/t*100):0;
- document.getElementById("done").textContent=d;document.getElementById("total").textContent=t||"—";
- document.getElementById("pct").textContent=p+"%";document.getElementById("bar").style.width=p+"%";
-}
-function msg(s){document.getElementById("msg").textContent=s}
+//#ALGO-START
+/* ================= GRAPHE + PARCOURS (problème du postier chinois) ================= */
+const EXCLUDED=new Set(["footway","path","cycleway","steps","pedestrian","bridleway","corridor","construction","proposed","platform","elevator","raceway","bus_stop"]);
 function cleanName(n){return n.replace(/\s+/g," ").trim()}
-
-async function fetchRoads(endpoint){
- const q=`[out:json][timeout:60];
- area["ref:INSEE"="34178"]["boundary"="administrative"]["admin_level"="8"]->.commune;
- way(area.commune)["highway"]["name"];
- out tags geom;`;
- const r=await fetch(endpoint+"?data="+encodeURIComponent(q),{cache:"no-store"});
- if(!r.ok)throw new Error("HTTP "+r.status);
- return r.json();
-}
-async function loadRoads(){
- let data=null;
- for(const e of ENDPOINTS){
-  try{data=await fetchRoads(e);if(data.elements?.length)break}catch(err){}
- }
- if(!data?.elements?.length){msg("Impossible de charger les rues pour le moment. Recharge la page.");return}
- ways=data.elements.filter(w=>w.tags?.name&&w.geometry?.length>1&&!excluded.has(w.tags.highway));
- // Regrouper par nom, mais conserver toutes les géométries.
- ways.forEach(w=>{
-   const name=cleanName(w.tags.name);
-   if(!streetMap.has(name))streetMap.set(name,[]);
-   streetMap.get(name).push(w);
- });
- drawAll();
- updateUI();renderList();fitMap();
- msg(streetMap.size+" rues accessibles ont été chargées dans les limites de la commune.");
-}
-function colorFor(name){return done.has(name)?"#16a34a":"#ef4444"}
-function drawAll(){
- streetLayers.forEach(arr=>arr.forEach(l=>map.removeLayer(l)));streetLayers.clear();
- for(const [name,arr] of streetMap){
-  const ls=[];
-  arr.forEach(w=>{
-   const pts=w.geometry.map(p=>[p.lat,p.lon]);
-   const l=L.polyline(pts,{color:colorFor(name),weight:5,opacity:.75}).addTo(map);
-   l.bindTooltip(name,{sticky:true});
-   l.on("click",()=>toggleStreet(name));
-   ls.push(l);
-  });
-  streetLayers.set(name,ls);
- }
-}
-function toggleStreet(name){
- if(done.has(name))done.delete(name);else done.add(name);
- (streetLayers.get(name)||[]).forEach(l=>l.setStyle({color:colorFor(name)}));
- save();msg((done.has(name)?"Rue validée : ":"Rue remise à faire : ")+name);
-}
-function fitMap(){
- const all=[];streetLayers.forEach(a=>a.forEach(l=>all.push(l)));
- if(all.length)map.fitBounds(L.featureGroup(all).getBounds().pad(.04));
-}
-function renderList(){
- const el=document.getElementById("streetList");el.innerHTML="";
- [...streetMap.keys()].sort((a,b)=>a.localeCompare(b,"fr")).forEach(n=>{
-  const d=document.createElement("div");d.className="street"+(done.has(n)?" done":"");
-  d.textContent=(done.has(n)?"✓ ":"○ ")+n;
-  d.onclick=()=>{toggleStreet(n);d.classList.toggle("done",done.has(n))};
-  el.appendChild(d);
- });
-}
-
-function startGPS(){
- if(!navigator.geolocation){msg("La géolocalisation n'est pas disponible.");return}
- if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;document.getElementById("gps").textContent="Démarrer GPS";msg("GPS arrêté.");return}
- document.getElementById("gps").textContent="Arrêter GPS";
- navigator.geolocation.getCurrentPosition(()=>{},()=>{}, {enableHighAccuracy:true,timeout:15000});
- watchId=navigator.geolocation.watchPosition(onPosition,err=>msg("GPS : "+err.message),{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
- msg("GPS actif. Déplacement dans Murviel pour détecter les rues.");
-}
-function onPosition(pos){
- position=[pos.coords.latitude,pos.coords.longitude];
- const acc=pos.coords.accuracy||20;
- if(!userMarker){
-  userMarker=L.circleMarker(position,{radius:8,color:"#fff",weight:3,fillColor:"#2563eb",fillOpacity:1}).addTo(map);
-  accuracyCircle=L.circle(position,{radius:acc,color:"#2563eb",fillOpacity:.08,weight:1}).addTo(map);
- }else{userMarker.setLatLng(position);accuracyCircle.setLatLng(position).setRadius(acc)}
- detectStreet();
- chooseNext();
-}
-function distanceMeters(a,b){
- const R=6371000,lat1=a[0]*Math.PI/180,lat2=b[0]*Math.PI/180,dlat=(b[0]-a[0])*Math.PI/180,dlon=(b[1]-a[1])*Math.PI/180;
- const h=Math.sin(dlat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dlon/2)**2;
+function hav(a,b){
+ const R=6371000,l1=a[0]*Math.PI/180,l2=b[0]*Math.PI/180,dl=(b[0]-a[0])*Math.PI/180,dn=(b[1]-a[1])*Math.PI/180;
+ const h=Math.sin(dl/2)**2+Math.cos(l1)*Math.cos(l2)*Math.sin(dn/2)**2;
  return 2*R*Math.asin(Math.sqrt(h));
 }
-function pointLineDistance(p,a,b){
- const lat=p[0]*Math.PI/180, c=Math.cos(lat);
- const px=p[1]*c,py=p[0],ax=a[1]*c,ay=a[0],bx=b[1]*c,by=b[0],dx=bx-ax,dy=by-ay;
- const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1)));
- return distanceMeters(p,[ay+t*dy,(ax+t*dx)/c]);
+function bearing(a,b){
+ const l1=a[0]*Math.PI/180,l2=b[0]*Math.PI/180,dn=(b[1]-a[1])*Math.PI/180;
+ const y=Math.sin(dn)*Math.cos(l2),x=Math.cos(l1)*Math.sin(l2)-Math.sin(l1)*Math.cos(l2)*Math.cos(dn);
+ return (Math.atan2(y,x)*180/Math.PI+360)%360;
 }
-function detectStreet(){
- if(!position)return;
- let best=null,bd=Infinity;
- for(const [name,arr] of streetMap){
-  if(done.has(name))continue;
-  for(const w of arr){
-   for(let i=0;i<w.geometry.length-1;i++){
-    const a=[w.geometry[i].lat,w.geometry[i].lon],b=[w.geometry[i+1].lat,w.geometry[i+1].lon];
-    const d=pointLineDistance(position,a,b);
-    if(d<bd){bd=d;best=name}
+
+// Découpe chaque voie OSM en tronçons entre carrefours.
+function buildGraph(elements){
+ const ways=elements.filter(w=>w.type==="way"&&w.tags?.highway&&!EXCLUDED.has(w.tags.highway)
+   &&w.nodes&&w.geometry&&w.nodes.length===w.geometry.length&&w.nodes.length>1&&w.geometry.every(Boolean));
+ const use=new Map(),coord=new Map();
+ for(const w of ways){
+  w.nodes.forEach((n,i)=>{use.set(n,(use.get(n)||0)+1);coord.set(n,[w.geometry[i].lat,w.geometry[i].lon])});
+  const f=w.nodes[0],l=w.nodes[w.nodes.length-1];use.set(f,use.get(f)+1);use.set(l,use.get(l)+1);
+ }
+ const edges=[],adj=new Map(),keys=new Set();
+ const link=(n,i)=>{if(!adj.has(n))adj.set(n,[]);adj.get(n).push(i)};
+ for(const w of ways){
+  const name=w.tags.name?cleanName(w.tags.name):null;
+  const ow=w.tags.oneway==="-1"?-1:(w.tags.oneway==="yes"||w.tags.oneway==="1"||w.tags.junction==="roundabout")?1:0;
+  let s=0;
+  for(let i=1;i<w.nodes.length;i++){
+   if(use.get(w.nodes[i])>1||i===w.nodes.length-1){
+    const ids=w.nodes.slice(s,i+1),geom=ids.map(n=>coord.get(n));
+    let len=0;for(let k=1;k<geom.length;k++)len+=hav(geom[k-1],geom[k]);
+    if(len>0.5){
+     const a=ids[0],b=ids[ids.length-1];
+     let key=w.id+":"+a+"-"+b;while(keys.has(key))key+="'";keys.add(key);
+     const e={i:edges.length,key,a,b,geom,len,name,required:!!name,oneway:ow};
+     edges.push(e);link(a,e.i);if(b!==a)link(b,e.i);
+    }
+    s=i;
    }
   }
  }
- if(best&&bd<18){
-  done.add(best);
-  (streetLayers.get(best)||[]).forEach(l=>l.setStyle({color:"#16a34a"}));
-  save();msg("Rue parcourue : "+best+" ("+Math.round(bd)+" m)");
+ return {edges,adj,coord};
+}
+
+// Tas binaire minimal pour Dijkstra
+class Heap{constructor(){this.a=[]}
+ push(d,n){const a=this.a;a.push([d,n]);let i=a.length-1;while(i){const p=(i-1)>>1;if(a[p][0]<=a[i][0])break;[a[p],a[i]]=[a[i],a[p]];i=p}}
+ pop(){const a=this.a,t=a[0],l=a.pop();if(a.length){a[0]=l;let i=0;for(;;){let m=i,L=2*i+1,R=L+1;if(L<a.length&&a[L][0]<a[m][0])m=L;if(R<a.length&&a[R][0]<a[m][0])m=R;if(m===i)break;[a[m],a[i]]=[a[i],a[m]];i=m}}return t}
+ get size(){return this.a.length}}
+
+function dijkstra(G,sources){
+ const dist=new Map(),prev=new Map(),h=new Heap();
+ for(const s of sources){dist.set(s,0);h.push(0,s)}
+ while(h.size){
+  const [d,n]=h.pop();if(d>dist.get(n))continue;
+  for(const ei of G.adj.get(n)||[]){
+   const e=G.edges[ei],m=e.a===n?e.b:e.a,nd=d+e.len;
+   if(nd<(dist.has(m)?dist.get(m):Infinity)){dist.set(m,nd);prev.set(m,ei);h.push(nd,m)}
+  }
  }
+ return {dist,prev};
 }
-function streetPoint(name){
- const arr=streetMap.get(name);if(!arr)return null;
- let pts=arr[0].geometry;
- const p=pts[Math.floor(pts.length/2)];
- return [p.lat,p.lon];
+function pathTo(G,prev,target){
+ const out=[];let n=target;
+ while(prev.has(n)){const ei=prev.get(n);out.push(ei);const e=G.edges[ei];n=e.a===n?e.b:e.a;if(out.length>1e5)break}
+ return out.reverse();
 }
-function chooseNext(){
- if(!position)return;
- let best=null,bd=Infinity;
- for(const name of streetMap.keys()){
-  if(done.has(name))continue;
-  const p=streetPoint(name),d=distanceMeters(position,p);
-  if(d<bd){bd=d;best=name}
+
+/* requiredIdx : indices des tronçons à parcourir ; start : nœud de départ.
+   Renvoie une suite d'étapes {e, fwd, isNew} qui passe par tous les tronçons requis
+   en minimisant (approximativement) les kilomètres répétés. */
+function planRoute(G,requiredIdx,start){
+ const multi=requiredIdx.map(e=>({e,dh:false}));
+ // 1) Composantes connexes des tronçons requis (+ point de départ)
+ const par=new Map(),find=x=>{while(par.has(x)&&par.get(x)!==x){par.set(x,par.get(par.get(x))||par.get(x));x=par.get(x)}return x};
+ const add=x=>{if(!par.has(x))par.set(x,x)},uni=(x,y)=>{add(x);add(y);const a=find(x),b=find(y);if(a!==b)par.set(a,b)};
+ add(start);
+ for(const ei of requiredIdx){const e=G.edges[ei];uni(e.a,e.b)}
+ const comps=new Map();
+ for(const n of par.keys()){const r=find(n);if(!comps.has(r))comps.set(r,[]);comps.get(r).push(n)}
+ // 2) Relier les composantes au plus court (type Prim)
+ const connected=new Set(comps.get(find(start)));
+ const remaining=new Set([...comps.keys()].filter(r=>r!==find(start)));
+ const unreachable=new Set();
+ while(remaining.size){
+  const {dist,prev}=dijkstra(G,[...connected]);
+  let best=null,bd=Infinity,br=null;
+  for(const r of remaining)for(const n of comps.get(r)){const d=dist.get(n);if(d!==undefined&&d<bd){bd=d;best=n;br=r}}
+  if(best===null){remaining.forEach(r=>unreachable.add(r));break}
+  for(const ei of pathTo(G,prev,best)){multi.push({e:ei,dh:true});const e=G.edges[ei];connected.add(e.a);connected.add(e.b)}
+  comps.get(br).forEach(n=>connected.add(n));remaining.delete(br);
  }
- document.getElementById("next").textContent=best||"Toutes les rues sont faites !";
- document.getElementById("nextdist").textContent=best?(Math.round(bd)+" m à vol d'oiseau — appuie sur « Aller à la prochaine »"):"Félicitations !";
- document.getElementById("routeBtn").disabled=!best||!position;
- window.nextStreet=best;
+ const kept=multi.filter(m=>{const e=G.edges[m.e];return !unreachable.has(find(e.a))});
+ // 3) Nœuds de degré impair
+ const deg=new Map();
+ for(const m of kept){const e=G.edges[m.e];deg.set(e.a,(deg.get(e.a)||0)+1);deg.set(e.b,(deg.get(e.b)||0)+1)}
+ const odd=[...deg.keys()].filter(n=>deg.get(n)%2===1);
+ // 4) Appariement des nœuds impairs (glouton + amélioration 2-opt)
+ if(odd.length){
+  const sp=new Map();for(const o of odd)sp.set(o,dijkstra(G,[o]));
+  const D=(a,b)=>{const d=sp.get(a).dist.get(b);return d===undefined?1e12:d};
+  const pairs=[];
+  for(let i=0;i<odd.length;i++)for(let j=i+1;j<odd.length;j++)pairs.push([D(odd[i],odd[j]),odd[i],odd[j]]);
+  pairs.sort((x,y)=>x[0]-y[0]);
+  const mate=new Map();
+  for(const [,a,b] of pairs)if(!mate.has(a)&&!mate.has(b)){mate.set(a,b);mate.set(b,a)}
+  let improved=true,guard=0;
+  while(improved&&guard++<50){
+   improved=false;
+   const list=[];const seen=new Set();
+   for(const [a,b] of mate)if(!seen.has(a)){seen.add(a);seen.add(b);list.push([a,b])}
+   for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){
+    const [a,b]=list[i],[c,d]=list[j],cur=D(a,b)+D(c,d);
+    const o1=D(a,c)+D(b,d),o2=D(a,d)+D(b,c);
+    if(o1<cur-0.5&&o1<=o2){list[i]=[a,c];list[j]=[b,d];improved=true}
+    else if(o2<cur-0.5){list[i]=[a,d];list[j]=[b,c];improved=true}
+   }
+   mate.clear();for(const [a,b] of list){mate.set(a,b);mate.set(b,a)}
+  }
+  // On ne revient pas au départ : si le départ est impair, on ne double pas sa paire.
+  const skip=mate.has(start)?start:null;
+  const done=new Set();
+  for(const [a,b] of mate){
+   if(done.has(a))continue;done.add(a);done.add(b);
+   if(a===skip||b===skip)continue;
+   for(const ei of pathTo(G,sp.get(a).prev,b))kept.push({e:ei,dh:true});
+  }
+ }
+ // 5) Circuit eulérien (Hierholzer)
+ const adjM=new Map();
+ kept.forEach((m,id)=>{const e=G.edges[m.e];for(const n of (e.a===e.b?[e.a,e.a]:[e.a,e.b])){if(!adjM.has(n))adjM.set(n,[]);adjM.get(n).push(id)}});
+ const used=new Uint8Array(kept.length),ptr=new Map(),stack=[{n:start,via:-1,fwd:true}],out=[];
+ while(stack.length){
+  const top=stack[stack.length-1],L=adjM.get(top.n)||[];let p=ptr.get(top.n)||0;
+  while(p<L.length&&used[L[p]])p++;ptr.set(top.n,p);
+  if(p<L.length){const id=L[p];used[id]=1;const e=G.edges[kept[id].e],fwd=e.a===top.n;stack.push({n:fwd?e.b:e.a,via:id,fwd})}
+  else{stack.pop();if(top.via>=0)out.push({e:kept[top.via].e,fwd:top.fwd})}
+ }
+ out.reverse();
+ // 6) Première traversée d'un tronçon requis = "à faire", les autres = liaison
+ const req=new Set(requiredIdx),seen=new Set();
+ for(const s of out){s.isNew=req.has(s.e)&&!seen.has(s.e);seen.add(s.e)}
+ while(out.length&&!out[out.length-1].isNew)out.pop(); // pas de retour inutile à la fin
+ const unreachableCount=requiredIdx.filter(ei=>unreachable.has(find(G.edges[ei].a))).length;
+ return {steps:out,unreachableCount};
 }
-async function routeToNext(){
- if(!position||!window.nextStreet)return;
- const dest=streetPoint(window.nextStreet);if(!dest)return;
- const url=ROUTER+position[1]+","+position[0]+";"+dest[1]+","+dest[0]+"?overview=full&geometries=geojson";
+
+// Transforme les étapes en tracé + consignes de navigation
+function buildRoute(G,steps){
+ const pts=[],cum=[];let total=0,newLen=0;
+ const stepInfo=[];
+ steps.forEach((s,k)=>{
+  const e=G.edges[s.e],g=s.fwd?e.geom:[...e.geom].reverse();
+  const from=pts.length?pts.length-1:0;
+  g.forEach((p,j)=>{if(pts.length&&j===0)return;if(pts.length)total+=hav(pts[pts.length-1],p);pts.push(p);cum.push(total)});
+  if(s.isNew)newLen+=e.len;
+  const against=e.oneway!==0&&((e.oneway===1)!==s.fwd);
+  stepInfo.push({from,to:pts.length-1,name:e.name,isNew:s.isNew,against,e:s.e});
+ });
+ const turnAt=(i)=>{ // angle au point i du tracé
+  let a=i-1,b=i+1;
+  while(a>0&&hav(pts[a],pts[i])<8)a--;while(b<pts.length-1&&hav(pts[b],pts[i])<8)b++;
+  if(a<0||b>=pts.length)return 0;
+  let d=bearing(pts[i],pts[b])-bearing(pts[a],pts[i]);while(d>180)d-=360;while(d<-180)d+=360;return d;
+ };
+ const legs=[];
+ stepInfo.forEach((s,k)=>{
+  const last=legs[legs.length-1];
+  const ang=k?turnAt(s.from):0;
+  if(last&&last.name===s.name&&last.isNew===s.isNew&&Math.abs(ang)<150){last.to=s.to;last.against=last.against||s.against;return}
+  legs.push({name:s.name,isNew:s.isNew,against:s.against,from:s.from,to:s.to,angle:ang,first:k===0});
+ });
+ legs.forEach(l=>{l.start=cum[l.from];l.end=cum[l.to]});
+ return {pts,cum,legs,stepInfo,total,newLen};
+}
+function turnText(a){
+ const A=Math.abs(a),side=a>0?"droite":"gauche";
+ if(A>=150)return ["🔄","Fais demi-tour"];
+ if(A<25)return ["⬆️","Continue tout droit"];
+ if(A<60)return [a>0?"↗️":"↖️","Serre à "+side];
+ return [a>0?"➡️":"⬅️","Tourne à "+side];
+}
+//#ALGO-END
+
+/* ================= APPLICATION ================= */
+const CENTER=[43.44010,3.14368];
+const STORAGE="murviel-rues-v4",OLD_STORAGE="murviel-rues-v3";
+const ENDPOINTS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://overpass.private.coffee/api/interpreter"];
+const $=id=>document.getElementById(id);
+
+const map=L.map("map",{zoomControl:false}).setView(CENTER,15);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap contributors"}).addTo(map);
+L.control.zoom({position:"bottomright"}).addTo(map);
+
+let G=null,streets=new Map(),edgeLayers=new Map(),doneKeys=new Set();
+let samples=[],grid=new Map();
+let route=null,progress=0,offCount=0,spokenLeg=-1,spokenFar=-1;
+let watchId=null,position=null,lastAcc=99,userMarker=null,accCircle=null,follow=true,voice=false,wakeLock=null;
+let routeAll=null,routeAhead=null;
+try{doneKeys=new Set(JSON.parse(localStorage.getItem(STORAGE)||"[]"))}catch(e){}
+
+function msg(s){$("msg").textContent=s}
+function save(){localStorage.setItem(STORAGE,JSON.stringify([...doneKeys]))}
+const isDone=ei=>doneKeys.has(G.edges[ei].key);
+const fmt=m=>m>=1000?(m/1000).toFixed(1).replace(".",",")+" km":Math.round(m/10)*10+" m";
+
+async function loadRoads(){
+ const q=`[out:json][timeout:90];
+area["ref:INSEE"="34178"]["boundary"="administrative"]["admin_level"="8"]->.c;
+way(area.c)["highway"];
+out body geom;`;
+ let data=null;
+ for(const ep of ENDPOINTS){
+  try{const r=await fetch(ep+"?data="+encodeURIComponent(q),{cache:"no-store"});if(!r.ok)continue;data=await r.json();if(data.elements?.length)break}catch(e){}
+ }
+ if(!data?.elements?.length){setInstr("⚠️","Rues non chargées","Les serveurs OpenStreetMap ne répondent pas. Recharge la page.");return}
+ G=buildGraph(data.elements);
+ G.edges.forEach(e=>{if(!e.required)return;if(!streets.has(e.name))streets.set(e.name,[]);streets.get(e.name).push(e.i)});
+ migrateOld();buildSamples();drawEdges();updateStats();renderList();
+ const ls=[];edgeLayers.forEach(l=>ls.push(l));if(ls.length)map.fitBounds(L.featureGroup(ls).getBounds().pad(.04));
+ $("planBtn").disabled=false;
+ setInstr("🧭","Prêt",streets.size+" rues chargées. Démarre le GPS : le parcours se calcule depuis ta position.");
+}
+function migrateOld(){
  try{
-  const r=await fetch(url);const j=await r.json();
-  if(!j.routes?.[0])throw Error();
-  if(routeLine)map.removeLayer(routeLine);
-  routeLine=L.geoJSON(j.routes[0].geometry,{style:{color:"#2563eb",weight:7,opacity:.85}}).addTo(map);
-  map.fitBounds(routeLine.getBounds().pad(.12));
-  document.getElementById("nextdist").textContent=Math.round(j.routes[0].distance)+" m par la route vers "+window.nextStreet;
-  msg("Trajet calculé vers "+window.nextStreet+".");
- }catch(e){msg("Le calcul du trajet n'a pas répondu. Réessaie dans quelques secondes.")}
+  const old=JSON.parse(localStorage.getItem(OLD_STORAGE)||"[]");
+  if(!old.length||doneKeys.size)return;
+  old.forEach(n=>(streets.get(n)||[]).forEach(ei=>doneKeys.add(G.edges[ei].key)));save();
+  msg("Progression de la V3 reprise ("+old.length+" rues).");
+ }catch(e){}
 }
-document.getElementById("gps").onclick=startGPS;
-document.getElementById("routeBtn").onclick=routeToNext;
-document.getElementById("reset").onclick=()=>{
- if(confirm("Effacer toute la progression ?")){
-  done.clear();if(routeLine){map.removeLayer(routeLine);routeLine=null}save();drawAll();chooseNext();msg("Progression réinitialisée.");
+
+/* Points de contrôle tous les ~12 m : un tronçon est validé quand 75 % de ses points ont été approchés */
+const cellOf=p=>Math.floor(p[0]/0.0004)+","+Math.floor(p[1]/0.0005);
+function buildSamples(){
+ samples=[];grid=new Map();
+ for(const e of G.edges){
+  if(!e.required)continue;
+  const n=Math.max(1,Math.round(e.len/12));e.samples=[];e.hit=0;
+  for(let k=0;k<n;k++){
+   const p=pointAt(e.geom,e.len*(k+.5)/n),s={p,e:e.i,hit:false};
+   samples.push(s);e.samples.push(s);
+   const c=cellOf(p);if(!grid.has(c))grid.set(c,[]);grid.get(c).push(s);
+  }
  }
+}
+function pointAt(geom,d){
+ for(let k=1;k<geom.length;k++){const l=hav(geom[k-1],geom[k]);if(d<=l){const t=l?d/l:0;return [geom[k-1][0]+(geom[k][0]-geom[k-1][0])*t,geom[k-1][1]+(geom[k][1]-geom[k-1][1])*t]}d-=l}
+ return geom[geom.length-1];
+}
+function markCoverage(){
+ const r=Math.max(18,Math.min(lastAcc,30));
+ const [la,lo]=[Math.floor(position[0]/0.0004),Math.floor(position[1]/0.0005)];
+ const touched=new Set();
+ for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++)for(const s of grid.get((la+i)+","+(lo+j))||[]){
+  if(!s.hit&&hav(s.p,position)<r){s.hit=true;G.edges[s.e].hit++;touched.add(s.e)}
+ }
+ let newly=[];
+ for(const ei of touched){const e=G.edges[ei];if(!isDone(ei)&&e.hit/e.samples.length>=.75){doneKeys.add(e.key);newly.push(ei)}}
+ if(newly.length){save();newly.forEach(styleEdge);updateStats();renderList();
+  const names=[...new Set(newly.map(ei=>G.edges[ei].name))].filter(n=>streetDone(n));
+  if(names.length)msg("✅ Rue terminée : "+names.join(", "));}
+}
+const streetDone=n=>(streets.get(n)||[]).every(isDone);
+
+function edgeColor(ei){return isDone(ei)?"#16a34a":"#ef4444"}
+function drawEdges(){
+ edgeLayers.forEach(l=>map.removeLayer(l));edgeLayers.clear();
+ for(const e of G.edges){
+  if(!e.required)continue;
+  const l=L.polyline(e.geom,{color:edgeColor(e.i),weight:5,opacity:.75}).addTo(map);
+  l.bindTooltip(e.name,{sticky:true});
+  l.on("click",()=>{toggleEdges([e.i]);msg((isDone(e.i)?"Tronçon validé : ":"Tronçon remis à faire : ")+e.name+" — pense à recalculer.")});
+  edgeLayers.set(e.i,l);
+ }
+}
+function styleEdge(ei){edgeLayers.get(ei)?.setStyle({color:edgeColor(ei)})}
+function toggleEdges(list){
+ const target=!list.every(isDone);
+ list.forEach(ei=>{const k=G.edges[ei].key;target?doneKeys.add(k):doneKeys.delete(k);styleEdge(ei)});
+ save();updateStats();renderList();
+}
+function updateStats(){
+ const names=[...streets.keys()],d=names.filter(streetDone).length,t=names.length;
+ let all=0,rest=0;for(const e of G.edges)if(e.required){all+=e.len;if(!isDone(e.i))rest+=e.len}
+ $("done").textContent=d;$("total").textContent=t||"—";
+ $("remain").textContent=(rest/1000).toFixed(1).replace(".",",");
+ $("bar").style.width=(all?Math.round((all-rest)/all*100):0)+"%";
+}
+function renderList(){
+ const el=$("streetList");el.innerHTML="";
+ [...streets.keys()].sort((a,b)=>a.localeCompare(b,"fr")).forEach(n=>{
+  const list=streets.get(n),d=list.filter(isDone).length;
+  const row=document.createElement("div");row.className="street"+(d===list.length?" done":"");
+  row.innerHTML=`<span></span><small>${d}/${list.length}</small>`;
+  row.firstChild.textContent=(d===list.length?"✓ ":"○ ")+n;
+  row.onclick=()=>toggleEdges(list);
+  el.appendChild(row);
+ });
+}
+
+/* ---------- Calcul du parcours ---------- */
+function nearestNode(p){
+ let best=null,bd=Infinity;
+ for(const [n,c] of G.coord){if(!G.adj.has(n))continue;const d=hav(p,c);if(d<bd){bd=d;best=n}}
+ return best;
+}
+function plan(){
+ if(!G)return;
+ const from=position||map.getCenter();const p=Array.isArray(from)?from:[from.lat,from.lng];
+ const todo=G.edges.filter(e=>e.required&&!isDone(e.i)).map(e=>e.i);
+ if(!todo.length){setInstr("🎉","Toutes les rues sont faites !","Bravo.");return}
+ setInstr("⏳","Calcul du parcours…","Quelques secondes.");
+ setTimeout(()=>{
+  const t0=performance.now();
+  const start=nearestNode(p);
+  const res=planRoute(G,todo,start);
+  route=buildRoute(G,res.steps);progress=0;offCount=0;spokenLeg=-1;spokenFar=-1;
+  drawRoute();
+  const dupPct=route.total?Math.round((route.total-route.newLen)/route.total*100):0;
+  $("dup").textContent=dupPct+"%";
+  msg(`Parcours : ${fmt(route.total)} dont ${fmt(route.total-route.newLen)} de liaison (${Math.round(performance.now()-t0)} ms).`
+   +(res.unreachableCount?` ${res.unreachableCount} tronçons isolés ignorés.`:""));
+  $("planBtn").textContent="Recalculer";
+  updateNav();
+ },30);
+}
+function drawRoute(){
+ if(routeAll)map.removeLayer(routeAll);if(routeAhead)map.removeLayer(routeAhead);
+ routeAll=L.polyline(route.pts,{color:"#1d4ed8",weight:3,opacity:.35,dashArray:"6 8"}).addTo(map);
+ routeAhead=L.polyline([],{color:"#1d4ed8",weight:8,opacity:.85}).addTo(map);
+}
+
+/* ---------- Suivi sur le parcours ---------- */
+function projectOnRoute(){
+ // cherche la position sur le tracé dans une fenêtre en avant (évite de sauter aux passages répétés)
+ const P=route.pts,C=route.cum;
+ let i0=0;while(i0<C.length-1&&C[i0+1]<progress-30)i0++;
+ let best=null,bd=Infinity;
+ const c=Math.cos(position[0]*Math.PI/180);
+ for(let i=i0;i<P.length-1&&C[i]<progress+250;i++){
+  const ax=P[i][1]*c,ay=P[i][0],bx=P[i+1][1]*c,by=P[i+1][0],px=position[1]*c,py=position[0];
+  const dx=bx-ax,dy=by-ay,t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1)));
+  const q=[ay+t*dy,(ax+t*dx)/c],d=hav(position,q);
+  if(d<bd){bd=d;best=C[i]+t*(C[i+1]-C[i])}
+ }
+ return {d:bd,at:best};
+}
+function updateNav(){
+ if(!route)return;
+ if(position){
+  const pr=projectOnRoute();
+  if(pr.d<Math.max(30,lastAcc)){progress=Math.max(progress,pr.at);offCount=0}else offCount++;
+ }
+ const legs=route.legs;
+ let k=legs.findIndex(l=>l.end>progress+1);
+ if(k<0){setInstr("🎉","Parcours terminé","Recalcule s'il reste des tronçons rouges.");return}
+ // tracé à venir (600 m)
+ const ahead=[];for(let i=0;i<route.pts.length;i++){const c=route.cum[i];if(c>=progress-5&&c<=progress+600)ahead.push(route.pts[i])}
+ routeAhead.setLatLngs(ahead);
+ const cur=legs[k],nxt=legs[k+1],dist=cur.end-progress;
+ const box=$("instr");box.classList.toggle("off",offCount>=3);box.classList.toggle("liaison",offCount<3&&!cur.isNew);
+ if(offCount>=3){setInstr("⚠️","Hors parcours","Reviens sur le tracé bleu ou appuie sur Recalculer.");return}
+ const curTxt=(cur.isNew?"Rue à faire : ":"Liaison : ")+(cur.name||"voie sans nom")+(cur.against?" ⚠️ sens interdit":"");
+ if(!nxt){setInstr("🏁",fmt(dist),"Fin du parcours",curTxt);return}
+ const [ar,tt]=turnText(nxt.angle);
+ const label=tt+(Math.abs(nxt.angle)>=150?"":" sur "+(nxt.name||"voie sans nom"));
+ setInstr(ar,fmt(dist),label,curTxt);
+ if(voice){
+  if(dist<45&&spokenLeg!==k){spokenLeg=k;say(tt+(Math.abs(nxt.angle)>=150?"":" sur "+(nxt.name||"la voie sans nom")))}
+  else if(dist>120&&dist<200&&spokenFar!==k){spokenFar=k;say("Dans "+Math.round(dist/10)*10+" mètres, "+tt.toLowerCase())}
+ }
+}
+function setInstr(a,d,n,s=""){ $("arrow").textContent=a;$("idist").textContent=d;$("iname").textContent=n;$("isub").textContent=s }
+function say(t){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang="fr-FR";speechSynthesis.speak(u)}catch(e){}}
+
+/* ---------- GPS ---------- */
+async function startGPS(){
+ if(!navigator.geolocation){msg("La géolocalisation n'est pas disponible.");return}
+ if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;$("gps").textContent="Démarrer GPS";$("gps").classList.remove("on");try{wakeLock?.release()}catch(e){}msg("GPS arrêté.");return}
+ $("gps").textContent="Arrêter GPS";$("gps").classList.add("on");
+ try{wakeLock=await navigator.wakeLock?.request("screen")}catch(e){}
+ watchId=navigator.geolocation.watchPosition(onPosition,err=>msg("GPS : "+err.message),{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+ msg("GPS actif, recherche de la position…");
+}
+function onPosition(pos){
+ lastAcc=pos.coords.accuracy||20;
+ if(lastAcc>60){msg("Signal GPS faible ("+Math.round(lastAcc)+" m), position ignorée.");return}
+ position=[pos.coords.latitude,pos.coords.longitude];
+ if(!userMarker){
+  userMarker=L.circleMarker(position,{radius:8,color:"#fff",weight:3,fillColor:"#2563eb",fillOpacity:1}).addTo(map);
+  accCircle=L.circle(position,{radius:lastAcc,color:"#2563eb",fillOpacity:.08,weight:1}).addTo(map);
+  map.setView(position,17);
+ }else{userMarker.setLatLng(position);accCircle.setLatLng(position).setRadius(lastAcc)}
+ if(follow)map.panTo(position,{animate:true});
+ if(G){markCoverage();if(!route)plan();else updateNav()}
+}
+map.on("dragstart",()=>{follow=false;msg("Suivi de la carte en pause — touche ta position pour le reprendre.")});
+map.on("click",e=>{if(position&&hav([e.latlng.lat,e.latlng.lng],position)<40){follow=true;map.panTo(position)}});
+
+$("gps").onclick=startGPS;
+$("planBtn").onclick=plan;
+$("voiceBtn").onclick=()=>{voice=!voice;$("voiceBtn").textContent=voice?"🔊":"🔇";$("voiceBtn").classList.toggle("on",voice);if(voice)say("Guidage vocal activé")};
+$("listBtn").onclick=()=>$("list").style.display="block";
+$("closeList").onclick=()=>$("list").style.display="none";
+$("reset").onclick=()=>{
+ if(!confirm("Effacer toute la progression ?"))return;
+ doneKeys.clear();save();samples.forEach(s=>s.hit=false);G.edges.forEach(e=>e.hit=0);
+ G.edges.forEach(e=>e.required&&styleEdge(e.i));updateStats();renderList();
+ if(routeAll){map.removeLayer(routeAll);map.removeLayer(routeAhead);routeAll=routeAhead=null}route=null;
+ $("dup").textContent="—";$("planBtn").textContent="Calculer le parcours";
+ $("list").style.display="none";msg("Progression réinitialisée.");
 };
-document.getElementById("listBtn").onclick=()=>document.getElementById("list").style.display="block";
-document.getElementById("closeList").onclick=()=>document.getElementById("list").style.display="none";
 loadRoads();
 </script>
 </body>
