@@ -6,179 +6,230 @@
 <meta name="theme-color" content="#111827">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.svg">
-<title>Murviel — Toutes les rues</title>
+<title>Murviel — Toutes les rues V3</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-*{box-sizing:border-box}html,body,#map{height:100%;margin:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif}
-#map{position:absolute;inset:0}
-.panel{position:fixed;z-index:1000;left:10px;right:10px;top:max(10px,env(safe-area-inset-top));background:rgba(255,255,255,.96);border-radius:18px;padding:12px;box-shadow:0 4px 24px rgba(0,0,0,.20)}
+*{box-sizing:border-box}html,body,#map{height:100%;margin:0}body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Arial,sans-serif}
+#map{position:fixed;inset:0}.panel{position:fixed;z-index:1000;left:10px;right:10px;top:max(10px,env(safe-area-inset-top));background:rgba(255,255,255,.97);border-radius:18px;padding:12px;box-shadow:0 4px 24px #0003}
 .title{font-size:19px;font-weight:800}.sub{font-size:12px;color:#667085;margin-top:2px}
 .stats{display:flex;gap:7px;margin-top:9px}.stat{flex:1;background:#f2f4f7;border-radius:11px;padding:7px;text-align:center}.num{font-size:17px;font-weight:800}.lbl{font-size:10px;color:#667085}
 .progress{height:8px;background:#e4e7ec;border-radius:99px;margin-top:9px;overflow:hidden}.bar{height:100%;width:0;background:#16a34a;transition:width .25s}
-.buttons{display:flex;gap:7px;margin-top:9px}.btn{flex:1;border:0;border-radius:11px;padding:11px;font-weight:750;background:#111827;color:white}.btn.secondary{background:#e4e7ec;color:#111827}
+.next{margin-top:9px;background:#eef4ff;border-radius:12px;padding:9px;font-size:12px}.next b{font-size:14px}
+.buttons{display:flex;gap:7px;margin-top:9px}.btn{flex:1;border:0;border-radius:11px;padding:11px;font-weight:750;background:#111827;color:white}.btn.secondary{background:#e4e7ec;color:#111827}.btn:disabled{opacity:.5}
 #msg{font-size:12px;color:#475467;margin-top:7px;line-height:1.25;min-height:15px}
-.legend{position:fixed;z-index:999;bottom:max(12px,env(safe-area-inset-bottom));left:10px;background:rgba(255,255,255,.94);border-radius:13px;padding:8px 10px;font-size:11px;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+.legend{position:fixed;z-index:999;bottom:max(12px,env(safe-area-inset-bottom));left:10px;background:#fffef0eF;border-radius:13px;padding:8px 10px;font-size:11px;box-shadow:0 2px 12px #0002}
+#list{display:none;position:fixed;z-index:1100;inset:0;background:white;padding:18px;padding-top:max(18px,env(safe-area-inset-top));overflow:auto}.listhead{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:20px;margin-bottom:12px}.street{padding:10px 4px;border-bottom:1px solid #eee;font-size:14px}.street.done{color:#16a34a;text-decoration:line-through}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div class="panel">
-  <div class="title">Murviel-lès-Béziers</div>
-  <div class="sub">Toutes les rues — V2</div>
-  <div class="stats">
-    <div class="stat"><div class="num" id="done">0</div><div class="lbl">segments faits</div></div>
-    <div class="stat"><div class="num" id="total">—</div><div class="lbl">segments</div></div>
-    <div class="stat"><div class="num" id="pct">0%</div><div class="lbl">progression</div></div>
-  </div>
-  <div class="progress"><div class="bar" id="bar"></div></div>
-  <div class="buttons">
-    <button class="btn" id="gps">Démarrer GPS</button>
-    <button class="btn secondary" id="reset">Réinitialiser</button>
-  </div>
-  <div id="msg">Chargement des rues…</div>
+ <div class="title">Murviel-lès-Béziers</div>
+ <div class="sub">Toutes les rues — V3</div>
+ <div class="stats">
+  <div class="stat"><div class="num" id="done">0</div><div class="lbl">rues faites</div></div>
+  <div class="stat"><div class="num" id="total">—</div><div class="lbl">rues</div></div>
+  <div class="stat"><div class="num" id="pct">0%</div><div class="lbl">progression</div></div>
+ </div>
+ <div class="progress"><div class="bar" id="bar"></div></div>
+ <div class="next">Prochaine rue : <b id="next">—</b><br><span id="nextdist">Démarre le GPS pour calculer le trajet.</span></div>
+ <div class="buttons">
+  <button class="btn" id="gps">Démarrer GPS</button>
+  <button class="btn secondary" id="listBtn">Liste des rues</button>
+ </div>
+ <div class="buttons">
+  <button class="btn secondary" id="reset">Réinitialiser</button>
+  <button class="btn secondary" id="routeBtn" disabled>Aller à la prochaine</button>
+ </div>
+ <div id="msg">Chargement des rues de la commune…</div>
 </div>
-<div class="legend">🔴 à faire &nbsp; 🟢 parcouru &nbsp; 🔵 position</div>
+<div class="legend">🔴 à faire &nbsp; 🟢 faite &nbsp; 🔵 position &nbsp; 🔷 trajet</div>
+
+<div id="list">
+ <div class="listhead"><span>Rues de Murviel</span><button class="btn secondary" id="closeList" style="flex:0;padding:8px 12px">Fermer</button></div>
+ <div id="streetList"></div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const CENTER=[43.4401,3.14368];
-const STORAGE="murviel-rues-v2";
-const OVERPASS=[
+const CENTER=[43.44010,3.14368];
+const STORAGE="murviel-rues-v3";
+const ENDPOINTS=[
  "https://overpass-api.de/api/interpreter",
  "https://overpass.kumi.systems/api/interpreter",
  "https://overpass.private.coffee/api/interpreter"
 ];
+const ROUTER="https://router.project-osrm.org/route/v1/driving/";
 
 const map=L.map("map",{zoomControl:false}).setView(CENTER,14);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
- maxZoom:20,attribution:"© OpenStreetMap contributors"
-}).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap contributors"}).addTo(map);
 L.control.zoom({position:"bottomright"}).addTo(map);
 
-let segments=[], layers=[], done=new Set(), watchId=null, userMarker=null, accuracyCircle=null;
+let ways=[], streetMap=new Map(), streetLayers=new Map(), done=new Set(), watchId=null;
+let userMarker=null, accuracyCircle=null, position=null, routeLine=null;
 try{done=new Set(JSON.parse(localStorage.getItem(STORAGE)||"[]"))}catch(e){}
 
-function save(){localStorage.setItem(STORAGE,JSON.stringify([...done]));updateUI()}
+const excluded=new Set(["footway","path","cycleway","steps","pedestrian","bridleway","corridor","construction","proposed"]);
+function save(){localStorage.setItem(STORAGE,JSON.stringify([...done]));updateUI();renderList()}
 function updateUI(){
- const t=segments.length,d=done.size,p=t?Math.round(d/t*100):0;
- document.getElementById("done").textContent=d;
- document.getElementById("total").textContent=t||"—";
- document.getElementById("pct").textContent=p+"%";
- document.getElementById("bar").style.width=p+"%";
+ const names=[...streetMap.keys()], d=names.filter(n=>done.has(n)).length, t=names.length, p=t?Math.round(d/t*100):0;
+ document.getElementById("done").textContent=d;document.getElementById("total").textContent=t||"—";
+ document.getElementById("pct").textContent=p+"%";document.getElementById("bar").style.width=p+"%";
 }
 function msg(s){document.getElementById("msg").textContent=s}
-function segmentId(w,i){return String(w.id)+"-"+i}
+function cleanName(n){return n.replace(/\s+/g," ").trim()}
 
-function addWay(w){
- if(!w.geometry || w.geometry.length<2 || !w.tags || !w.tags.name)return;
- for(let i=0;i<w.geometry.length-1;i++){
-   const a=w.geometry[i],b=w.geometry[i+1];
-   const id=segmentId(w,i);
-   const data={id,name:w.tags.name,coords:[[a.lat,a.lon],[b.lat,b.lon]]};
-   segments.push(data);
-   const line=L.polyline(data.coords,{
-     color:done.has(id)?"#16a34a":"#ef4444",weight:5,opacity:.72
-   }).addTo(map);
-   line.on("click",()=>{
-     if(done.has(id))done.delete(id);else done.add(id);
-     line.setStyle({color:done.has(id)?"#16a34a":"#ef4444"});
-     save();
-     msg((done.has(id)?"Rue/portion validée : ":"Rue/portion remise à faire : ")+data.name);
-   });
-   layers.push({id,name:data.name,line,coords:data.coords});
- }
-}
-
-async function getOverpass(url){
- const query=`[out:json][timeout:45];
- area["name"="Murviel-lès-Béziers"]["boundary"="administrative"]->.searchArea;
- way(area.searchArea)["highway"]["name"];
+async function fetchRoads(endpoint){
+ const q=`[out:json][timeout:60];
+ area["ref:INSEE"="34178"]["boundary"="administrative"]["admin_level"="8"]->.commune;
+ way(area.commune)["highway"]["name"];
  out tags geom;`;
- const r=await fetch(url+"?data="+encodeURIComponent(query),{cache:"no-store"});
+ const r=await fetch(endpoint+"?data="+encodeURIComponent(q),{cache:"no-store"});
  if(!r.ok)throw new Error("HTTP "+r.status);
- return await r.json();
+ return r.json();
 }
-
-async function loadStreets(){
- msg("Recherche du réseau routier de Murviel-lès-Béziers…");
- let data=null,lastErr=null;
- for(const endpoint of OVERPASS){
-   try{data=await getOverpass(endpoint);if(data.elements?.length)break}
-   catch(e){lastErr=e}
+async function loadRoads(){
+ let data=null;
+ for(const e of ENDPOINTS){
+  try{data=await fetchRoads(e);if(data.elements?.length)break}catch(err){}
  }
- if(!data || !data.elements?.length){
-   msg("Le serveur cartographique ne répond pas. Recharge la page dans quelques minutes.");
-   return;
+ if(!data?.elements?.length){msg("Impossible de charger les rues pour le moment. Recharge la page.");return}
+ ways=data.elements.filter(w=>w.tags?.name&&w.geometry?.length>1&&!excluded.has(w.tags.highway));
+ // Regrouper par nom, mais conserver toutes les géométries.
+ ways.forEach(w=>{
+   const name=cleanName(w.tags.name);
+   if(!streetMap.has(name))streetMap.set(name,[]);
+   streetMap.get(name).push(w);
+ });
+ drawAll();
+ updateUI();renderList();fitMap();
+ msg(streetMap.size+" rues accessibles ont été chargées dans les limites de la commune.");
+}
+function colorFor(name){return done.has(name)?"#16a34a":"#ef4444"}
+function drawAll(){
+ streetLayers.forEach(arr=>arr.forEach(l=>map.removeLayer(l)));streetLayers.clear();
+ for(const [name,arr] of streetMap){
+  const ls=[];
+  arr.forEach(w=>{
+   const pts=w.geometry.map(p=>[p.lat,p.lon]);
+   const l=L.polyline(pts,{color:colorFor(name),weight:5,opacity:.75}).addTo(map);
+   l.bindTooltip(name,{sticky:true});
+   l.on("click",()=>toggleStreet(name));
+   ls.push(l);
+  });
+  streetLayers.set(name,ls);
  }
- const ways=data.elements.filter(w=>w.tags?.name&&w.geometry?.length>1);
- ways.forEach(addWay);
- updateUI();
- if(layers.length){
-   const group=L.featureGroup(layers.map(x=>x.line));
-   map.fitBounds(group.getBounds().pad(.04));
- }
- msg(layers.length+" portions de rues chargées. Appuie sur « Démarrer GPS ».");
+}
+function toggleStreet(name){
+ if(done.has(name))done.delete(name);else done.add(name);
+ (streetLayers.get(name)||[]).forEach(l=>l.setStyle({color:colorFor(name)}));
+ save();msg((done.has(name)?"Rue validée : ":"Rue remise à faire : ")+name);
+}
+function fitMap(){
+ const all=[];streetLayers.forEach(a=>a.forEach(l=>all.push(l)));
+ if(all.length)map.fitBounds(L.featureGroup(all).getBounds().pad(.04));
+}
+function renderList(){
+ const el=document.getElementById("streetList");el.innerHTML="";
+ [...streetMap.keys()].sort((a,b)=>a.localeCompare(b,"fr")).forEach(n=>{
+  const d=document.createElement("div");d.className="street"+(done.has(n)?" done":"");
+  d.textContent=(done.has(n)?"✓ ":"○ ")+n;
+  d.onclick=()=>{toggleStreet(n);d.classList.toggle("done",done.has(n))};
+  el.appendChild(d);
+ });
 }
 
 function startGPS(){
- if(!navigator.geolocation){msg("La géolocalisation n'est pas disponible sur cet appareil.");return}
- if(watchId!==null){
-   navigator.geolocation.clearWatch(watchId);watchId=null;
-   document.getElementById("gps").textContent="Démarrer GPS";
-   msg("GPS arrêté.");
-   return;
- }
+ if(!navigator.geolocation){msg("La géolocalisation n'est pas disponible.");return}
+ if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;document.getElementById("gps").textContent="Démarrer GPS";msg("GPS arrêté.");return}
  document.getElementById("gps").textContent="Arrêter GPS";
- msg("Demande d'autorisation GPS…");
- watchId=navigator.geolocation.watchPosition(pos=>{
-   const {latitude,longitude,accuracy}=pos.coords,p=[latitude,longitude];
-   if(!userMarker){
-     userMarker=L.circleMarker(p,{radius:8,color:"#fff",weight:3,fillColor:"#2563eb",fillOpacity:1}).addTo(map);
-     accuracyCircle=L.circle(p,{radius:accuracy,color:"#2563eb",fillOpacity:.08,weight:1}).addTo(map);
-     map.setView(p,17);
-   }else{
-     userMarker.setLatLng(p);
-     accuracyCircle.setLatLng(p).setRadius(accuracy);
-   }
-   msg("GPS actif — précision ±"+Math.round(accuracy)+" m");
-   detectSegments(p);
- },err=>{
-   msg("GPS : "+err.message+" — vérifie l'autorisation de localisation dans Safari.");
- },{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+ navigator.geolocation.getCurrentPosition(()=>{},()=>{}, {enableHighAccuracy:true,timeout:15000});
+ watchId=navigator.geolocation.watchPosition(onPosition,err=>msg("GPS : "+err.message),{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+ msg("GPS actif. Déplacement dans Murviel pour détecter les rues.");
 }
-
-function pointSegmentDistance(p,a,b){
- const lat=p[0]*Math.PI/180, cos=Math.cos(lat);
- const x1=a[1]*cos,y1=a[0],x2=b[1]*cos,y2=b[0],px=p[1]*cos,py=p[0];
- const dx=x2-x1,dy=y2-y1;
- const t=Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/(dx*dx+dy*dy||1)));
- const x=x1+t*dx,y=y1+t*dy;
- const dLat=(py-y)*111320,dLon=(px-x)*111320;
- return Math.sqrt(dLat*dLat+dLon*dLon);
+function onPosition(pos){
+ position=[pos.coords.latitude,pos.coords.longitude];
+ const acc=pos.coords.accuracy||20;
+ if(!userMarker){
+  userMarker=L.circleMarker(position,{radius:8,color:"#fff",weight:3,fillColor:"#2563eb",fillOpacity:1}).addTo(map);
+  accuracyCircle=L.circle(position,{radius:acc,color:"#2563eb",fillOpacity:.08,weight:1}).addTo(map);
+ }else{userMarker.setLatLng(position);accuracyCircle.setLatLng(position).setRadius(acc)}
+ detectStreet();
+ chooseNext();
 }
-
-function detectSegments(p){
- let count=0;
- for(const s of layers){
-   if(done.has(s.id))continue;
-   const d=pointSegmentDistance(p,s.coords[0],s.coords[1]);
-   if(d<10){
-     done.add(s.id);s.line.setStyle({color:"#16a34a"});count++;
+function distanceMeters(a,b){
+ const R=6371000,lat1=a[0]*Math.PI/180,lat2=b[0]*Math.PI/180,dlat=(b[0]-a[0])*Math.PI/180,dlon=(b[1]-a[1])*Math.PI/180;
+ const h=Math.sin(dlat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dlon/2)**2;
+ return 2*R*Math.asin(Math.sqrt(h));
+}
+function pointLineDistance(p,a,b){
+ const lat=p[0]*Math.PI/180, c=Math.cos(lat);
+ const px=p[1]*c,py=p[0],ax=a[1]*c,ay=a[0],bx=b[1]*c,by=b[0],dx=bx-ax,dy=by-ay;
+ const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1)));
+ return distanceMeters(p,[ay+t*dy,(ax+t*dx)/c]);
+}
+function detectStreet(){
+ if(!position)return;
+ let best=null,bd=Infinity;
+ for(const [name,arr] of streetMap){
+  if(done.has(name))continue;
+  for(const w of arr){
+   for(let i=0;i<w.geometry.length-1;i++){
+    const a=[w.geometry[i].lat,w.geometry[i].lon],b=[w.geometry[i+1].lat,w.geometry[i+1].lon];
+    const d=pointLineDistance(position,a,b);
+    if(d<bd){bd=d;best=name}
    }
+  }
  }
- if(count){save();msg(count+" portion(s) de rue parcourue(s) détectée(s).")}
+ if(best&&bd<18){
+  done.add(best);
+  (streetLayers.get(best)||[]).forEach(l=>l.setStyle({color:"#16a34a"}));
+  save();msg("Rue parcourue : "+best+" ("+Math.round(bd)+" m)");
+ }
 }
-
+function streetPoint(name){
+ const arr=streetMap.get(name);if(!arr)return null;
+ let pts=arr[0].geometry;
+ const p=pts[Math.floor(pts.length/2)];
+ return [p.lat,p.lon];
+}
+function chooseNext(){
+ if(!position)return;
+ let best=null,bd=Infinity;
+ for(const name of streetMap.keys()){
+  if(done.has(name))continue;
+  const p=streetPoint(name),d=distanceMeters(position,p);
+  if(d<bd){bd=d;best=name}
+ }
+ document.getElementById("next").textContent=best||"Toutes les rues sont faites !";
+ document.getElementById("nextdist").textContent=best?(Math.round(bd)+" m à vol d'oiseau — appuie sur « Aller à la prochaine »"):"Félicitations !";
+ document.getElementById("routeBtn").disabled=!best||!position;
+ window.nextStreet=best;
+}
+async function routeToNext(){
+ if(!position||!window.nextStreet)return;
+ const dest=streetPoint(window.nextStreet);if(!dest)return;
+ const url=ROUTER+position[1]+","+position[0]+";"+dest[1]+","+dest[0]+"?overview=full&geometries=geojson";
+ try{
+  const r=await fetch(url);const j=await r.json();
+  if(!j.routes?.[0])throw Error();
+  if(routeLine)map.removeLayer(routeLine);
+  routeLine=L.geoJSON(j.routes[0].geometry,{style:{color:"#2563eb",weight:7,opacity:.85}}).addTo(map);
+  map.fitBounds(routeLine.getBounds().pad(.12));
+  document.getElementById("nextdist").textContent=Math.round(j.routes[0].distance)+" m par la route vers "+window.nextStreet;
+  msg("Trajet calculé vers "+window.nextStreet+".");
+ }catch(e){msg("Le calcul du trajet n'a pas répondu. Réessaie dans quelques secondes.")}
+}
 document.getElementById("gps").onclick=startGPS;
+document.getElementById("routeBtn").onclick=routeToNext;
 document.getElementById("reset").onclick=()=>{
  if(confirm("Effacer toute la progression ?")){
-   done.clear();save();
-   layers.forEach(s=>s.line.setStyle({color:"#ef4444"}));
-   msg("Progression réinitialisée.");
+  done.clear();if(routeLine){map.removeLayer(routeLine);routeLine=null}save();drawAll();chooseNext();msg("Progression réinitialisée.");
  }
 };
-loadStreets();
+document.getElementById("listBtn").onclick=()=>document.getElementById("list").style.display="block";
+document.getElementById("closeList").onclick=()=>document.getElementById("list").style.display="none";
+loadRoads();
 </script>
 </body>
 </html>
